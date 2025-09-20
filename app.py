@@ -30,7 +30,7 @@ WELCOME_HTML = """
         <h1 class="text-4xl font-bold text-green-700 mb-4">Welcome to Agri-GPT</h1>
         <p class="text-lg text-gray-600 mb-6">Your smart companion for modern farming.</p>
         <p class="text-gray-500 mb-8">This AI-powered system recommends the most suitable crop for your land based on soil and weather conditions.</p>
-        <button onclick="window.location.href='?continue=yes'" class="w-full px-6 py-3 rounded-full bg-green-600 text-white text-lg font-semibold hover:bg-green-700 transition-colors">
+        <button onclick="window.location.href='?page=profile'" class="w-full px-6 py-3 rounded-full bg-green-600 text-white text-lg font-semibold hover:bg-green-700 transition-colors">
             Continue
         </button>
     </div>
@@ -60,7 +60,7 @@ PROFILE_HTML = """
 <div class="relative flex h-auto min-h-screen w-full flex-col bg-white" style='font-family: "Work Sans", "Noto Sans", sans-serif;'>
   <header class="sticky top-0 z-10 bg-white border-b border-gray-200">
     <div class="mx-auto flex h-16 max-w-md items-center justify-between px-4">
-      <button onclick="window.location.href='?back=yes'" class="text-gray-700 hover:text-gray-900">
+      <button onclick="window.location.href='?page=welcome'" class="text-gray-700 hover:text-gray-900">
         ◀
       </button>
       <h1 class="text-lg font-bold text-gray-900">Farm Profile Setup</h1>
@@ -102,11 +102,11 @@ PROFILE_HTML = """
 
   <footer class="sticky bottom-0 bg-white border-t border-gray-200">
     <div class="mx-auto max-w-md p-4 flex items-center space-x-4">
-      <button onclick="window.location.href='?back=yes'"
+      <button onclick="window.location.href='?page=welcome'"
           class="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-base font-semibold text-gray-700">
         Back
       </button>
-      <button onclick="window.location.href='?next=yes'"
+      <button onclick="window.location.href='?page=predict'"
           class="w-full rounded-md bg-green-600 px-4 py-3 text-base font-semibold text-white">
         Next
       </button>
@@ -162,7 +162,7 @@ PREDICT_HTML = """
 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 <div class="flex h-16 items-center justify-between">
 <div class="flex items-center">
-<button onclick="window.location.href='?back_to_profile=yes'" class="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600">
+<button onclick="window.location.href='?page=profile'" class="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600">
 <span class="material-symbols-outlined">
   arrow_back_ios_new
 </span>
@@ -284,9 +284,9 @@ PREDICT_HTML = """
 <span class="material-symbols-outlined">person</span>
 <span class="text-xs font-medium">Profile</span>
 </a>
-<a class="flex flex-col items-center gap-1 p-2 rounded-md text-gray-500 hover:text-[var(--primary-color)]" href="#">
-<span class="material-symbols-outlined">settings</span>
-<span class="text-xs font-medium">Settings</span>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-600 hover:text-primary-600" href="#">
+<span class="material-symbols-outlined"> settings </span>
+<p class="text-xs font-medium">Settings</p>
 </a>
 </div>
 </footer>
@@ -363,10 +363,10 @@ RESULT_HTML = """
 
     <footer class="sticky bottom-0 bg-white border-t border-gray-200">
         <div class="mx-auto max-w-md p-4 flex items-center space-x-4">
-            <button onclick="window.location.href='?back_to_predict=yes'" class="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-base font-semibold text-gray-700">
+            <button onclick="window.location.href='?page=predict'" class="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-base font-semibold text-gray-700">
                 Start Again
             </button>
-            <button onclick="window.location.href='?go_to_dashboard=yes'" class="w-full rounded-md bg-green-600 px-4 py-3 text-base font-semibold text-white">
+            <button onclick="window.location.href='?page=dashboard'" class="w-full rounded-md bg-green-600 px-4 py-3 text-base font-semibold text-white">
                 View Dashboard
             </button>
         </div>
@@ -428,7 +428,7 @@ DASHBOARD_HTML = """
 <div class="relative flex h-auto min-h-screen w-full flex-col justify-between group/design-root overflow-x-hidden" style='font-family: "Work Sans", "Noto Sans", sans-serif;'>
 <div class="flex-grow">
 <header class="flex items-center justify-between bg-white p-4 shadow-sm">
-<button onclick="window.location.href='?back_to_result=yes'" class="text-gray-700">
+<button onclick="window.location.href='?page=result'" class="text-gray-700">
 <span class="material-symbols-outlined"> arrow_back </span>
 </button>
 <h1 class="text-lg font-bold text-gray-800">Crop Recommendation Dashboard</h1>
@@ -604,84 +604,50 @@ except FileNotFoundError:
     st.error(f"Error: Could not find model or scaler files at '{MODEL_PATH}' or '{SCALER_PATH}'. Please check the paths.")
     st.stop()
 
-# Session state to control navigation and pass data
-if "page" not in st.session_state:
-    st.session_state.page = "welcome"
-if "prediction" not in st.session_state:
-    st.session_state.prediction = None
+# Get current page from query params, default to 'welcome'
+page = st.query_params.get('page', 'welcome')
 
 # --- PAGE 1: WELCOME SCREEN ---
-if st.session_state.page == "welcome":
+if page == "welcome":
     components.html(WELCOME_HTML, height=500)
-    query_params = st.query_params
-    if "continue" in query_params:
-        st.session_state.page = "profile"
-        st.query_params.clear()
 
 # --- PAGE 2: FARM PROFILE SETUP ---
-elif st.session_state.page == "profile":
+elif page == "profile":
     components.html(PROFILE_HTML, height=700)
-    query_params = st.query_params
-    if "back" in query_params:
-        st.session_state.page = "welcome"
-        st.query_params.clear()
-    elif "next" in query_params:
-        st.session_state.page = "predict"
-        st.query_params.clear()
 
 # --- PAGE 3: PREDICTION FORM (New HTML) ---
-elif st.session_state.page == "predict":
-    query_params = st.query_params
-    
-    # Check if form data is present in the URL
-    if all(key in query_params for key in ['nitrogen', 'phosphorus', 'potassium', 'ph', 'temperature', 'humidity', 'rainfall']):
+elif page == "predict":
+    components.html(PREDICT_HTML, height=1000)
+
+# --- PAGE 4: RESULT PAGE ---
+elif page == "result":
+    # Check for form data in the URL
+    if all(key in st.query_params for key in ['nitrogen', 'phosphorus', 'potassium', 'ph', 'temperature', 'humidity', 'rainfall']):
         try:
             # Extract and convert data from URL parameters
-            N = float(query_params['nitrogen'])
-            P = float(query_params['phosphorus'])
-            K = float(query_params['potassium'])
-            ph = float(query_params['ph'])
-            temperature = float(query_params['temperature'])
-            humidity = float(query_params['humidity'])
-            rainfall = float(query_params['rainfall'])
+            N = float(st.query_params['nitrogen'])
+            P = float(st.query_params['phosphorus'])
+            K = float(st.query_params['potassium'])
+            ph = float(st.query_params['ph'])
+            temperature = float(st.query_params['temperature'])
+            humidity = float(st.query_params['humidity'])
+            rainfall = float(st.query_params['rainfall'])
             
             # Process and predict
             features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
             scaled = scaler.transform(features)
             prediction = model.predict(scaled)[0]
             
-            # Store prediction and navigate to result page
+            # Store prediction in session state for later use
             st.session_state.prediction = prediction
-            st.session_state.page = "result"
-            st.query_params.clear()
-            st.query_params['prediction'] = prediction
             
         except (ValueError, IndexError) as e:
             st.error(f"Error processing input data: {e}")
-            st.write("Please go back and ensure all fields are filled with valid numbers.")
-            components.html(PREDICT_HTML, height=1000) # Re-render the form
-    else:
-        # If no data is in the URL, show the form
-        components.html(PREDICT_HTML, height=1000)
-        if "back_to_profile" in query_params:
-            st.session_state.page = "profile"
-            st.query_params.clear()
-        
-# --- PAGE 4: RESULT PAGE ---
-elif st.session_state.page == "result":
+            st.warning("Please ensure all fields are filled with valid numbers and try again.")
+            st.session_state.prediction = None
+
     components.html(RESULT_HTML, height=700)
-    query_params = st.query_params
-    if "back_to_predict" in query_params:
-        st.session_state.page = "predict"
-        st.query_params.clear()
-    elif "go_to_dashboard" in query_params:
-        st.session_state.page = "dashboard"
-        st.query_params.clear()
 
 # --- PAGE 5: DASHBOARD PAGE ---
-elif st.session_state.page == "dashboard":
+elif page == "dashboard":
     components.html(DASHBOARD_HTML, height=1000)
-    query_params = st.query_params
-    if "back_to_result" in query_params:
-        st.session_state.page = "result"
-        st.query_params.clear()
