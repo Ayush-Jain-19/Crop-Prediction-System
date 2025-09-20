@@ -613,40 +613,37 @@ if "prediction" not in st.session_state:
 # --- PAGE 1: WELCOME SCREEN ---
 if st.session_state.page == "welcome":
     components.html(WELCOME_HTML, height=500)
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     if "continue" in query_params:
         st.session_state.page = "profile"
-        st.experimental_set_query_params()
-        st.experimental_rerun()
+        st.query_params.clear()
 
 # --- PAGE 2: FARM PROFILE SETUP ---
 elif st.session_state.page == "profile":
     components.html(PROFILE_HTML, height=700)
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     if "back" in query_params:
         st.session_state.page = "welcome"
-        st.experimental_set_query_params()
-        st.experimental_rerun()
+        st.query_params.clear()
     elif "next" in query_params:
         st.session_state.page = "predict"
-        st.experimental_set_query_params()
-        st.experimental_rerun()
+        st.query_params.clear()
 
 # --- PAGE 3: PREDICTION FORM (New HTML) ---
 elif st.session_state.page == "predict":
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     
     # Check if form data is present in the URL
     if all(key in query_params for key in ['nitrogen', 'phosphorus', 'potassium', 'ph', 'temperature', 'humidity', 'rainfall']):
         try:
             # Extract and convert data from URL parameters
-            N = float(query_params['nitrogen'][0])
-            P = float(query_params['phosphorus'][0])
-            K = float(query_params['potassium'][0])
-            ph = float(query_params['ph'][0])
-            temperature = float(query_params['temperature'][0])
-            humidity = float(query_params['humidity'][0])
-            rainfall = float(query_params['rainfall'][0])
+            N = float(query_params['nitrogen'])
+            P = float(query_params['phosphorus'])
+            K = float(query_params['potassium'])
+            ph = float(query_params['ph'])
+            temperature = float(query_params['temperature'])
+            humidity = float(query_params['humidity'])
+            rainfall = float(query_params['rainfall'])
             
             # Process and predict
             features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
@@ -656,8 +653,8 @@ elif st.session_state.page == "predict":
             # Store prediction and navigate to result page
             st.session_state.prediction = prediction
             st.session_state.page = "result"
-            st.experimental_set_query_params(prediction=prediction)
-            st.experimental_rerun()
+            st.query_params.clear()
+            st.query_params['prediction'] = prediction
             
         except (ValueError, IndexError) as e:
             st.error(f"Error processing input data: {e}")
@@ -668,27 +665,23 @@ elif st.session_state.page == "predict":
         components.html(PREDICT_HTML, height=1000)
         if "back_to_profile" in query_params:
             st.session_state.page = "profile"
-            st.experimental_set_query_params()
-            st.experimental_rerun()
+            st.query_params.clear()
         
 # --- PAGE 4: RESULT PAGE ---
 elif st.session_state.page == "result":
     components.html(RESULT_HTML, height=700)
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     if "back_to_predict" in query_params:
         st.session_state.page = "predict"
-        st.experimental_set_query_params()
-        st.experimental_rerun()
+        st.query_params.clear()
     elif "go_to_dashboard" in query_params:
         st.session_state.page = "dashboard"
-        st.experimental_set_query_params()
-        st.experimental_rerun()
+        st.query_params.clear()
 
 # --- PAGE 5: DASHBOARD PAGE ---
 elif st.session_state.page == "dashboard":
     components.html(DASHBOARD_HTML, height=1000)
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     if "back_to_result" in query_params:
         st.session_state.page = "result"
-        st.experimental_set_query_params()
-        st.experimental_rerun()
+        st.query_params.clear()
