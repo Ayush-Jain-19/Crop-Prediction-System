@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
+    <link as="style" href="https://fonts.googleapis.com/css2?display=swap&family=Noto+Sans:wght@400;500;700;900&family=Work+Sans:wght@400;500;700;900" onload="this.rel='stylesheet'" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <title>Agri-GPT</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+
+    <style type="text/tailwindcss">
+        :root {
+            --primary-color: #4ade80;
+            --primary-50: #f0fdf4;
+            --primary-100: #dcfce7;
+            --primary-200: #bbf7d0;
+            --primary-300: #86efac;
+            --primary-400: #4ade80;
+            --primary-500: #22c55e;
+            --primary-600: #16a34a;
+            --primary-700: #15803d;
+            --primary-800: #166534;
+            --primary-900: #14532d;
+            --primary-950: #052e16;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --background-primary: #111827;
+            --background-secondary: #1f2937;
+            --border-color: #374151;
+        }
+        body {
+            font-family: "Work Sans", "Noto Sans", sans-serif;
+            min-height: 100vh;
+            background-color: var(--background-primary);
+            color: var(--text-primary);
+        }
+        .form-input {
+            @apply w-full rounded-lg border-[var(--border-color)] shadow-sm bg-gray-800 text-white focus:border-[var(--primary-color)] focus:ring-[var(--primary-color)];
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            @apply w-5 h-5 bg-[var(--primary-color)] rounded-full cursor-pointer appearance-none;
+        }
+        input[type="range"]::-moz-range-thumb {
+            @apply w-5 h-5 bg-[var(--primary-color)] rounded-full cursor-pointer;
+        }
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .page.active {
+            display: flex;
+            opacity: 1;
+        }
+        .animate-in-element {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .page.active .animate-in-element {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #374151;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #374151 transparent transparent transparent;
+        }
+        .tooltip-container:hover .tooltip-text, .tooltip-container.active .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-[var(--background-primary)]">
+    <div id="app" class="relative flex h-auto min-h-screen w-full flex-col justify-between group/design-root overflow-x-hidden">
+
+        <!-- Page containers -->
+        <div id="welcome-page" class="page flex items-center justify-center min-h-screen relative p-4 bg-cover bg-center" style="background-image: url('https://placehold.co/1920x1080/052e16/4ade80?text=FARM+FIELD');">
+            <div class="absolute inset-0 bg-green-950 opacity-80"></div>
+            <div class="max-w-md w-full p-8 bg-gray-800/90 backdrop-blur-sm rounded-3xl shadow-2xl text-center relative z-10">
+                <h1 class="text-4xl sm:text-5xl font-bold text-green-400 mb-4 animate-in-element" style="transition-delay: 0.1s;" data-i18n="welcome_title">Welcome to Agri-GPT</h1>
+                <p class="text-lg sm:text-xl text-gray-200 mb-6 animate-in-element" style="transition-delay: 0.3s;" data-i18n="welcome_tagline">Your smart companion for modern farming.</p>
+                <p class="text-sm text-gray-400 mb-8 animate-in-element" style="transition-delay: 0.5s;" data-i18n="welcome_description">This AI-powered system recommends the most suitable crop for your land based on soil and weather conditions.</p>
+                
+                <div class="mb-6 animate-in-element" style="transition-delay: 0.7s;">
+                    <label for="language-select" class="block text-sm font-medium text-gray-400 mb-2" data-i18n="select_language">Select Language</label>
+                    <select id="language-select" class="form-input text-gray-200">
+                        <option value="en">English</option>
+                        <option value="hi">Hindi (हिंदी)</option>
+                        <option value="mr">Marathi (मराठी)</option>
+                        <option value="bn">Bengali (বাংলা)</option>
+                        <option value="ta">Tamil (தமிழ்)</option>
+                        <option value="te">Telugu (తెలుగు)</option>
+                    </select>
+                </div>
+                
+                <button onclick="navigate('profile')" class="w-full px-6 py-3 rounded-full bg-green-600 text-white text-lg font-semibold hover:bg-green-700 transition-colors transform hover:scale-105 shadow-lg animate-in-element" style="transition-delay: 0.9s;" data-i18n="continue_button">
+                    Continue
+                </button>
+            </div>
+        </div>
+
+        <div id="profile-page" class="page hidden">
+            <div class="relative flex h-auto min-h-screen w-full flex-col bg-gray-900">
+                <header class="sticky top-0 z-10 bg-gray-900 border-b border-gray-700">
+                    <div class="mx-auto flex h-16 max-w-md items-center justify-between px-4">
+                        <button onclick="navigate('welcome')" class="text-gray-400 hover:text-gray-200 transition-transform transform hover:scale-110">
+                            ◀️
+                        </button>
+                        <h1 class="text-lg font-bold text-gray-200" data-i18n="profile_title">Farm Profile Setup</h1>
+                        <div class="w-6"></div>
+                    </div>
+                </header>
+                <main class="flex-1 overflow-y-auto p-4">
+                    <div class="mx-auto max-w-md p-4">
+                        <div class="mb-6 animate-in-element" style="transition-delay: 0.1s;">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-sm font-medium text-green-400" data-i18n="step_one">Step 1 of 2</p>
+                                <p class="text-sm font-medium text-gray-400" data-i18n="personal_details">Personal Details</p>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                                <div class="bg-green-600 h-2 rounded-full transition-all duration-500 ease-in-out" style="width: 50%;"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="space-y-4 animate-in-element" style="transition-delay: 0.3s;">
+                                <h2 class="text-base font-semibold text-gray-200" data-i18n="your_info">Your Information</h2>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-400" for="farmer-name" data-i18n="your_name_label">Your Name</label>
+                                    <input class="form-input block w-full rounded-lg border-gray-700 shadow-sm bg-gray-800 text-white placeholder-gray-500" id="farmer-name" data-i18n-placeholder="your_name_placeholder" placeholder="Enter your full name" type="text" required/>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-400" for="email" data-i18n="email_label">Email Address</label>
+                                    <input class="form-input block w-full rounded-lg border-gray-700 shadow-sm bg-gray-800 text-white placeholder-gray-500" id="email" data-i18n-placeholder="email_placeholder" placeholder="you@example.com" type="email" required/>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-400" for="contact-number" data-i18n="contact_label">Contact Number</label>
+                                    <input class="form-input block w-full rounded-lg border-gray-700 shadow-sm bg-gray-800 text-white placeholder-gray-500" id="contact-number" data-i18n-placeholder="contact_placeholder" placeholder="Enter your phone number" type="tel" pattern="[0-9]*" required/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+                <footer class="sticky bottom-0 bg-gray-900 border-t border-gray-700">
+                    <div class="mx-auto max-w-md p-4 flex items-center space-x-4">
+                        <button onclick="navigate('welcome')" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-base font-semibold text-gray-400 hover:bg-gray-700 transition-colors" data-i18n="back_button">
+                            Back
+                        </button>
+                        <button id="profile-next-btn" onclick="navigate('predict')" class="w-full rounded-lg bg-green-600 px-4 py-3 text-base font-semibold text-white hover:bg-green-700 transition-colors shadow-md disabled:bg-gray-600 disabled:cursor-not-allowed" data-i18n="next_button" disabled>
+                            Next
+                        </button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+
+        <div id="predict-page" class="page hidden">
+            <div class="relative flex h-auto min-h-screen w-full flex-col justify-between group/design-root overflow-x-hidden">
+                <main class="flex-grow p-4">
+                    <header class="bg-gray-900 shadow-sm sticky top-0 z-10">
+                        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                            <div class="flex h-16 items-center justify-between">
+                                <div class="flex items-center">
+                                    <button onclick="navigate('profile')" class="rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200">
+                                        <span class="material-symbols-outlined">arrow_back_ios_new</span>
+                                    </button>
+                                </div>
+                                <h1 class="text-lg font-bold text-gray-200" data-i18n="predict_title">Crop Recommendation</h1>
+                                <div class="w-10"></div>
+                            </div>
+                        </div>
+                    </header>
+                    <div class="py-6">
+                        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                            <div class="mb-6 animate-in-element" style="transition-delay: 0.1s;">
+                                <h2 class="text-2xl font-bold leading-tight tracking-tight text-gray-200" data-i18n="predict_subtitle">Enter Soil & Climate Data</h2>
+                                <p class="mt-1 text-sm text-gray-400" data-i18n="predict_description">Provide the following details to get a crop recommendation.</p>
+                                <div id="auto-fill-status" class="mt-2 text-sm text-center text-yellow-400">Fetching location and weather data...</div>
+                            </div>
+                            <div class="space-y-6 bg-gray-800 p-6 rounded-lg shadow-xl animate-in-element" style="transition-delay: 0.3s;">
+                                <div class="relative">
+                                    <div aria-hidden="true" class="absolute inset-0 flex items-center">
+                                        <div class="w-full border-t border-gray-700"></div>
+                                    </div>
+                                    <div class="relative flex justify-center">
+                                        <span class="bg-gray-800 px-2 text-sm text-gray-400" data-i18n="manual_entry">Or enter manually</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <form id="recommendation-form" class="space-y-8 mt-6">
+                                <div class="bg-gray-800 p-6 rounded-lg shadow-xl animate-in-element" style="transition-delay: 0.5s;">
+                                    <h3 class="text-lg font-semibold leading-6 text-gray-200 border-b border-gray-700 pb-3 mb-6" data-i18n="soil_data_title">Soil Data</h3>
+                                    <div class="space-y-6">
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="nitrogen" data-i18n="nitrogen_label">Nitrogen (N)</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_nitrogen">Nitrogen is essential for vegetative growth and leaf development.</span>
+                                                </span>
+                                            </div>
+                                            <div class="relative flex items-center gap-2">
+                                                <input class="form-input" id="nitrogen" name="nitrogen" data-i18n-placeholder="nitrogen_placeholder" placeholder="e.g., 90" type="number" step="any" required/>
+                                                <button type="button" class="p-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors" onclick="startVoiceInput('nitrogen')">
+                                                    <span class="material-symbols-outlined text-base">mic</span>
+                                                </button>
+                                                <div class="pointer-events-none absolute inset-y-0 right-16 flex items-center pr-3">
+                                                    <span class="text-gray-500 sm:text-sm" data-i18n="unit_kg">kg/ha</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="phosphorus" data-i18n="phosphorus_label">Phosphorus (P)</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_phosphorus">Phosphorus is crucial for root development, flowering, and fruiting.</span>
+                                                </span>
+                                            </div>
+                                            <div class="relative flex items-center gap-2">
+                                                <input class="form-input" id="phosphorus" name="phosphorus" data-i18n-placeholder="phosphorus_placeholder" placeholder="e.g., 42" type="number" step="any" required/>
+                                                <button type="button" class="p-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors" onclick="startVoiceInput('phosphorus')">
+                                                    <span class="material-symbols-outlined text-base">mic</span>
+                                                </button>
+                                                <div class="pointer-events-none absolute inset-y-0 right-16 flex items-center pr-3">
+                                                    <span class="text-gray-500 sm:text-sm" data-i18n="unit_kg">kg/ha</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="potassium" data-i18n="potassium_label">Potassium (K)</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_potassium">Potassium helps with overall plant health and water regulation.</span>
+                                                </span>
+                                            </div>
+                                            <div class="relative flex items-center gap-2">
+                                                <input class="form-input" id="potassium" name="potassium" data-i18n-placeholder="potassium_placeholder" placeholder="e.g., 43" type="number" step="any" required/>
+                                                <button type="button" class="p-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors" onclick="startVoiceInput('potassium')">
+                                                    <span class="material-symbols-outlined text-base">mic</span>
+                                                </button>
+                                                <div class="pointer-events-none absolute inset-y-0 right-16 flex items-center pr-3">
+                                                    <span class="text-gray-500 sm:text-sm" data-i18n="unit_kg">kg/ha</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="ph" data-i18n="ph_label">pH</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_ph">pH is a measure of soil acidity or alkalinity, affecting nutrient availability.</span>
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center space-x-4">
+                                                <input class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" id="ph" max="14" min="0" name="ph" step="0.1" type="range" value="7.0"/>
+                                                <input class="form-input w-24 text-center" step="0.1" type="number" value="7.0"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-800 p-6 rounded-lg shadow-xl animate-in-element" style="transition-delay: 0.7s;">
+                                    <h3 class="text-lg font-semibold leading-6 text-gray-200 border-b border-gray-700 pb-3 mb-6" data-i18n="climate_data_title">Climate Data</h3>
+                                    <div class="space-y-6">
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="temperature" data-i18n="temperature_label">Temperature</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_temperature">Temperature affects plant growth and the speed of chemical reactions in the soil.</span>
+                                                </span>
+                                            </div>
+                                            <div class="relative flex items-center gap-2">
+                                                <input class="form-input" id="temperature" name="temperature" data-i18n-placeholder="temperature_placeholder" placeholder="e.g., 20.8" type="number" step="any" required/>
+                                                <button type="button" class="p-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors" onclick="startVoiceInput('temperature')">
+                                                    <span class="material-symbols-outlined text-base">mic</span>
+                                                </button>
+                                                <div class="pointer-events-none absolute inset-y-0 right-16 flex items-center pr-3">
+                                                    <span class="text-gray-500 sm:text-sm" data-i18n="unit_temp">°C</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="humidity" data-i18n="humidity_label">Humidity</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_humidity">Humidity affects a plant's ability to transpire and can increase disease risk.</span>
+                                                </span>
+                                            </div>
+                                            <div class="relative flex items-center gap-2">
+                                                <input class="form-input" id="humidity" name="humidity" data-i18n-placeholder="humidity_placeholder" placeholder="e.g., 82" type="number" step="any" required/>
+                                                <button type="button" class="p-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors" onclick="startVoiceInput('humidity')">
+                                                    <span class="material-symbols-outlined text-base">mic</span>
+                                                </button>
+                                                <div class="pointer-events-none absolute inset-y-0 right-16 flex items-center pr-3">
+                                                    <span class="text-gray-500 sm:text-sm" data-i18n="unit_percent">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between items-center">
+                                                <label class="text-sm font-medium text-gray-400 mb-1" for="rainfall" data-i18n="rainfall_label">Rainfall</label>
+                                                <span class="tooltip-container">
+                                                    <span class="material-symbols-outlined text-gray-400 text-sm cursor-pointer" onclick="toggleTooltip(event)">info</span>
+                                                    <span class="tooltip-text" data-i18n="tooltip_rainfall">Rainfall provides essential water for growth and impacts soil moisture.</span>
+                                                </span>
+                                            </div>
+                                            <div class="relative flex items-center gap-2">
+                                                <input class="form-input" id="rainfall" name="rainfall" data-i18n-placeholder="rainfall_placeholder" placeholder="e.g., 202.9" type="number" step="any" required/>
+                                                <button type="button" class="p-2 rounded-md bg-gray-700 text-white hover:bg-gray-600 transition-colors" onclick="startVoiceInput('rainfall')">
+                                                    <span class="material-symbols-outlined text-base">mic</span>
+                                                </button>
+                                                <div class="pointer-events-none absolute inset-y-0 right-16 flex items-center pr-3">
+                                                    <span class="text-gray-500 sm:text-sm" data-i18n="unit_mm">mm</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="flex w-full justify-center rounded-lg border border-transparent bg-[var(--primary-color)] py-3 px-4 text-base font-bold text-white shadow-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-offset-2 transition-transform transform hover:scale-105" type="submit" data-i18n="get_recommendation_button">
+                                        Get Recommendation
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </main>
+                <footer class="sticky bottom-0 bg-gray-900 border-t border-gray-700">
+                    <div class="mx-auto flex max-w-7xl justify-around px-4 py-2 sm:px-6 lg:px-8">
+                        <a class="flex flex-col items-center gap-1 p-2 rounded-md text-gray-400 hover:text-primary-400" href="#" onclick="navigate('welcome')">
+                            <span class="material-symbols-outlined">home</span>
+                            <span class="text-xs font-medium" data-i18n="nav_home">Home</span>
+                        </a>
+                        <a class="flex flex-col items-center gap-1 p-2 rounded-md text-gray-400 hover:text-[var(--primary-color)]" href="#" onclick="navigate('profile')">
+                            <span class="material-symbols-outlined">recommend</span>
+                            <span class="text-xs font-medium" data-i18n="nav_recommendations">Recommendations</span>
+                        </a>
+                        <a class="flex flex-col items-center gap-1 p-2 rounded-md text-[var(--primary-color)]" href="#" onclick="navigate('user')">
+                            <span class="material-symbols-outlined">person</span>
+                            <span class="text-xs font-medium" data-i18n="nav_profile">Profile</span>
+                        </a>
+                        <a class="flex flex-col items-center justify-center gap-1 py-2 text-gray-400 hover:text-primary-400" href="#">
+                            <span class="material-symbols-outlined"> settings </span>
+                            <p class="text-xs font-medium" data-i18n="nav_settings">Settings</p>
+                        </a>
+                    </div>
+                </footer>
+            </div>
+        </div>
+
+        <div id="result-page" class="page hidden">
+            <div class="relative flex h-auto min-h-screen w-full flex-col bg-gray-900">
+                <header class="sticky top-0 z-10 bg-gray-900 border-b border-gray-700">
+                    <div class="mx-auto flex h-16 max-w-md items-center justify-between px-4">
+                        <h1 class="text-lg font-bold text-gray-200" data-i18n="result_title">Recommendation Result</h1>
+                    </div>
+                </header>
+                <main class="flex-1 overflow-y-auto p-4">
+                    <div class="mx-auto max-w-md flex flex-col items-center justify-center h-full">
+                        <div class="text-center space-y-6 animate-in-element" style="transition-delay: 0.1s;">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 text-green-500 mx-auto" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <h2 class="text-2xl font-bold text-green-400" data-i18n="recommended_crop_title">Recommended Crop</h2>
+                            <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                                <p class="text-5xl font-extrabold text-green-400" id="result-text">CROP NAME</p>
+                            </div>
+                            <p class="text-sm text-gray-400" data-i18n="result_description">
+                                This recommendation is based on the data you provided. The model suggests this crop as the most suitable for your specific conditions.
+                            </p>
+                        </div>
+                        <div id="analysis-container" class="mt-8 w-full animate-in-element" style="transition-delay: 0.5s;">
+                            <h3 class="text-xl font-bold text-gray-200 mb-4" data-i18n="analysis_title">Detailed Analysis</h3>
+                            <div id="analysis-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Analysis items will be injected here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </main>
+                <footer class="sticky bottom-0 bg-gray-900 border-t border-gray-700">
+                    <div class="mx-auto max-w-md p-4 flex items-center space-x-4">
+                        <button onclick="navigate('predict')" class="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-base font-semibold text-gray-400 hover:bg-gray-700 transition-colors" data-i18n="start_again_button">
+                            Start Again
+                        </button>
+                        <button id="save-recommendation-btn" class="w-full rounded-lg bg-green-600 px-4 py-3 text-base font-semibold text-white hover:bg-green-700 transition-colors shadow-md" data-i18n="save_recommendation_button">
+                            Save Recommendation
+                        </button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+        
+        <div id="user-page" class="page hidden">
+            <div class="relative flex h-auto min-h-screen w-full flex-col bg-gray-900">
+                <header class="sticky top-0 z-10 bg-gray-900 border-b border-gray-700">
+                    <div class="mx-auto flex h-16 max-w-md items-center justify-between px-4">
+                        <button onclick="navigate('predict')" class="text-gray-400 hover:text-gray-200 transition-transform transform hover:scale-110">
+                            ◀️
+                        </button>
+                        <h1 class="text-lg font-bold text-gray-200" data-i18n="profile_page_title">Your Profile</h1>
+                        <div class="w-6"></div>
+                    </div>
+                </header>
+                <main class="flex-1 overflow-y-auto p-4">
+                    <div class="mx-auto max-w-md p-4">
+                        <h2 class="text-2xl font-bold text-gray-200 mb-4" data-i18n="your_history_title">Your Recommendation History</h2>
+                        <div id="user-id-container" class="bg-gray-800 p-4 rounded-lg shadow-sm mb-4">
+                            <p class="text-sm font-medium text-gray-400" data-i18n="user_id_label">Your User ID (for sharing):</p>
+                            <p id="user-id-text" class="text-xs text-gray-500 break-all"></p>
+                        </div>
+                        <div id="history-list" class="space-y-4">
+                            <!-- History items will be injected here by JavaScript -->
+                            <div class="bg-gray-800 p-4 rounded-lg text-center text-gray-500" data-i18n="no_history">No saved history.</div>
+                        </div>
+                    </div>
+                </main>
+                <footer class="sticky bottom-0 bg-gray-900 border-t border-gray-700">
+                    <div class="mx-auto max-w-md p-4 flex items-center space-x-4">
+                        <button onclick="navigate('predict')" class="w-full rounded-lg bg-green-600 px-4 py-3 text-base font-semibold text-white hover:bg-green-700 transition-colors shadow-md" data-i18n="start_new_recommendation">
+                            Start New Recommendation
+                        </button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+
+        <div id="dashboard-page" class="page hidden">
+            <div class="relative flex h-auto min-h-screen w-full flex-col justify-between group/design-root overflow-x-hidden">
+                <div class="flex-grow">
+                    <header class="flex items-center justify-between bg-gray-900 p-4 shadow-sm">
+                        <button onclick="navigate('result')" class="text-gray-400">
+                            <span class="material-symbols-outlined">arrow_back</span>
+                        </button>
+                        <h1 class="text-lg font-bold text-gray-200" data-i18n="dashboard_title">Crop Recommendation Dashboard</h1>
+                        <button class="text-gray-400">
+                            <span class="material-symbols-outlined">more_vert</span>
+                        </button>
+                    </header>
+                    <main class="p-4 md:p-6">
+                        <section class="mb-6 animate-in-element" style="transition-delay: 0.1s;">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-2xl font-bold text-gray-200" data-i18n="your_dashboard">Your Dashboard</h2>
+                                <button class="flex items-center gap-2 text-sm font-medium text-primary-400">
+                                    <span data-i18n="customize_button">Customize</span>
+                                    <span class="material-symbols-outlined text-base">edit</span>
+                                </button>
+                            </div>
+                            <p class="mt-1 text-gray-400" data-i18n="dashboard_description">Dynamic data for informed farming decisions.</p>
+                        </section>
+                        <section class="mb-6 animate-in-element" style="transition-delay: 0.3s;">
+                            <div class="rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-gray-200" data-i18n="realtime_weather_title">Real-Time Weather</h3>
+                                    <span class="text-sm text-gray-400">Sunny, 28°C</span>
+                                </div>
+                                <div class="flex justify-around">
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400" data-i18n="now">Now</p>
+                                        <span class="material-symbols-outlined text-yellow-500 text-3xl">wb_sunny</span>
+                                        <p class="font-bold">28°</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400" data-i18n="am_10">10 AM</p>
+                                        <span class="material-symbols-outlined text-yellow-500 text-3xl">wb_sunny</span>
+                                        <p class="font-bold">29°</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400" data-i18n="pm_1">1 PM</p>
+                                        <span class="material-symbols-outlined text-gray-500 text-3xl">cloud</span>
+                                        <p class="font-bold">31°</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400" data-i18n="pm_4">4 PM</p>
+                                        <span class="material-symbols-outlined text-blue-400 text-3xl">water_drop</span>
+                                        <p class="font-bold">27°</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="mb-6 animate-in-element" style="transition-delay: 0.5s;">
+                            <div class="rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                <h3 class="font-bold text-gray-200 mb-4" data-i18n="forecast_title">7-Day Forecast</h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <p class="font-medium text-gray-400 w-1/4" data-i18n="today">Today</p>
+                                        <div class="flex items-center gap-2 w-1/4">
+                                            <span class="material-symbols-outlined text-yellow-500">wb_sunny</span>
+                                            <p class="text-sm" data-i18n="sunny">Sunny</p>
+                                        </div>
+                                        <p class="text-right w-1/4">32°/22°</p>
+                                        <p class="text-right w-1/4 text-blue-500">10%</p>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <p class="font-medium text-gray-400 w-1/4" data-i18n="mon">Mon</p>
+                                        <div class="flex items-center gap-2 w-1/4">
+                                            <span class="material-symbols-outlined text-gray-500">cloud</span>
+                                            <p class="text-sm" data-i18n="cloudy">Cloudy</p>
+                                        </div>
+                                        <p class="text-right w-1/4">29°/21°</p>
+                                        <p class="text-right w-1/4 text-blue-500">20%</p>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <p class="font-medium text-gray-400 w-1/4" data-i18n="tue">Tue</p>
+                                        <div class="flex items-center gap-2 w-1/4">
+                                            <span class="material-symbols-outlined text-blue-400">water_drop</span>
+                                            <p class="text-sm" data-i18n="rain">Rain</p>
+                                        </div>
+                                        <p class="text-right w-1/4">27°/20°</p>
+                                        <p class="text-right w-1/4 text-blue-500">80%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="mb-6 animate-in-element" style="transition-delay: 0.7s;">
+                            <h3 class="text-xl font-bold text-gray-200 mb-4" data-i18n="predictive_analytics_title">Predictive Analytics</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                    <p class="text-sm font-medium text-gray-400" data-i18n="soybean_yield_label">Soybean Yield</p>
+                                    <p class="text-2xl font-bold text-gray-200">2.7 <span class="text-lg" data-i18n="tons_per_acre">tons/acre</span></p>
+                                    <p class="text-xs text-green-400 mt-1" data-i18n="soybean_yield_trend">+0.2 vs avg</p>
+                                </div>
+                                <div class="rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                    <p class="text-sm font-medium text-gray-400" data-i18n="corn_yield_label">Corn Yield</p>
+                                    <p class="text-2xl font-bold text-gray-200">3.1 <span class="text-lg" data-i18n="tons_per_acre">tons/acre</span></p>
+                                    <p class="text-xs text-green-400 mt-1" data-i18n="corn_yield_trend">+0.4 vs avg</p>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="mb-6 animate-in-element" style="transition-delay: 0.9s;">
+                            <h3 class="text-xl font-bold text-gray-200 mb-4" data-i18n="compare_recommendations_title">Compare Recommendations</h3>
+                            <div class="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4">
+                                <div class="flex-shrink-0 w-3/4 rounded-lg border border-primary-500 bg-primary-950 p-4 shadow-sm">
+                                    <p class="font-bold text-lg text-primary-400" data-i18n="soybeans_rec">Soybeans (Rec.)</p>
+                                    <p class="text-sm text-gray-400 mt-1" data-i18n="est_profit">Est. Profit:</p><span class="font-medium text-white" data-i18n="soybean_profit"> ₹350/acre</span></p>
+                                    <p class="text-sm text-gray-400" data-i18n="planting_dates">Planting: <span class="font-medium">May 1-15</span></p>
+                                    <p class="text-sm text-gray-400" data-i18n="harvest_dates">Harvest: <span class="font-medium">Oct 1-15</span></p>
+                                </div>
+                                <div class="flex-shrink-0 w-3/4 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                    <p class="font-bold text-lg text-gray-200" data-i18n="corn">Corn</p>
+                                    <p class="text-sm text-gray-400 mt-1" data-i18n="est_profit_corn">Est. Profit:</p><span class="font-medium text-white" data-i18n="corn_profit"> ₹320/acre</span></p>
+                                    <p class="text-sm text-gray-400" data-i18n="planting_dates_corn">Planting: <span class="font-medium">Apr 15-30</span></p>
+                                    <p class="text-sm text-gray-400" data-i18n="harvest_dates_corn">Harvest: <span class="font-medium">Sep 15-30</span></p>
+                                </div>
+                                <div class="flex-shrink-0 w-3/4 rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                    <p class="font-bold text-lg text-gray-200" data-i18n="wheat">Wheat</p>
+                                    <p class="text-sm text-gray-400 mt-1" data-i18n="est_profit_wheat">Est. Profit:</p><span class="font-medium text-white" data-i18n="wheat_profit"> ₹280/acre</span></p>
+                                    <p class="text-sm text-gray-400" data-i18n="planting_dates_wheat">Planting: <span class="font-medium">Sep 1-15</span></p>
+                                    <p class="text-sm text-gray-400" data-i18n="harvest_dates_wheat">Harvest: <span class="font-medium">Jun 1-15</span></p>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="mb-6 animate-in-element" style="transition-delay: 1.1s;">
+                            <h3 class="text-xl font-bold text-gray-200 mb-4" data-i18n="market_prices_title">Market Prices</h3>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800 p-4 shadow-sm">
+                                <div class="h-40">
+                                    <svg fill="none" height="100%" preserveAspectRatio="none" viewBox="0 0 472 150" width="100%" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M0 80C18.1538 80 18.1538 60 36.3077 60C54.4615 60 54.4615 90 72.6154 90C90.7692 90 90.7692 40 108.923 40C127.077 40 127.077 75 145.231 75C163.385 75 163.385 55 181.538 55C199.692 55 199.692 25 217.846 25C236 25 236 65 254.154 65C272.308 65 272.308 100 290.462 100C308.615 100 308.615 120 326.769 120C344.923 120 344.923 80 363.077 80C381.231 80 381.231 40 399.385 40C417.538 40 417.538 90 435.692 90C453.846 90 453.846 60 472 60" stroke="#fb923c" stroke-linecap="round" stroke-width="3"></path>
+                                        <path d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25" stroke="var(--primary-400)" stroke-linecap="round" stroke-width="3"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex justify-between items-center mt-2 border-t border-gray-700 pt-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-primary-400"></div>
+                                        <span class="text-sm font-medium text-gray-400" data-i18n="soybeans">Soybeans</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-orange-400"></div>
+                                        <span class="text-sm font-medium text-gray-400" data-i18n="corn_label">Corn</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </main>
+                </div>
+                <footer class="sticky bottom-0 border-t border-gray-700 bg-gray-900 shadow-t-sm">
+                    <nav class="flex justify-around px-2 py-1">
+                        <a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-400 hover:text-primary-400" href="#" onclick="navigate('welcome')">
+                            <span class="material-symbols-outlined">home</span>
+                            <p class="text-xs font-medium" data-i18n="nav_home">Home</p>
+                        </a>
+                        <a class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-primary-950 py-2 text-primary-400" href="#" onclick="navigate('dashboard')">
+                            <span class="material-symbols-outlined">bar_chart</span>
+                            <p class="text-xs font-medium" data-i18n="nav_dashboard">Dashboard</p>
+                        </a>
+                        <a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-400 hover:text-primary-400" href="#" onclick="navigate('profile')">
+                            <span class="material-symbols-outlined">person</span>
+                            <p class="text-xs font-medium" data-i18n="nav_profile">Profile</p>
+                        </a>
+                        <a class="flex flex-1 flex-col items-center justify-center gap-1 py-2 text-gray-400 hover:text-primary-400" href="#">
+                            <span class="material-symbols-outlined">settings</span>
+                            <p class="text-xs font-medium" data-i18n="nav_settings">Settings</p>
+                        </a>
+                    </nav>
+                </footer>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const translations = {
+            en: {
+                welcome_title: "Welcome to Agri-GPT",
+                welcome_tagline: "Your smart companion for modern farming.",
+                welcome_description: "This AI-powered system recommends the most suitable crop for your land based on soil and weather conditions.",
+                select_language: "Select Language",
+                continue_button: "Continue",
+                profile_title: "Farm Profile Setup",
+                step_one: "Step 1 of 2",
+                personal_details: "Personal Details",
+                your_info: "Your Information",
+                your_name_label: "Your Name",
+                your_name_placeholder: "Enter your full name",
+                email_label: "Email Address",
+                email_placeholder: "you@example.com",
+                contact_label: "Contact Number",
+                contact_placeholder: "Enter your phone number",
+                back_button: "Back",
+                next_button: "Next",
+                predict_title: "Crop Recommendation",
+                predict_subtitle: "Enter Soil & Climate Data",
+                predict_description: "Provide the following details to get a crop recommendation.",
+                manual_entry: "Or enter manually",
+                soil_data_title: "Soil Data",
+                nitrogen_label: "Nitrogen (N)",
+                nitrogen_placeholder: "e.g., 90",
+                phosphorus_label: "Phosphorus (P)",
+                phosphorus_placeholder: "e.g., 42",
+                potassium_label: "Potassium (K)",
+                potassium_placeholder: "e.g., 43",
+                ph_label: "pH",
+                climate_data_title: "Climate Data",
+                temperature_label: "Temperature",
+                temperature_placeholder: "e.g., 20.8",
+                humidity_label: "Humidity",
+                humidity_placeholder: "e.g., 82",
+                rainfall_label: "Rainfall",
+                rainfall_placeholder: "e.g., 202.9",
+                get_recommendation_button: "Get Recommendation",
+                result_title: "Recommendation Result",
+                recommended_crop_title: "Recommended Crop",
+                result_description: "This recommendation is based on the data you provided. The model suggests this crop as the most suitable for your specific conditions.",
+                start_again_button: "Start Again",
+                view_dashboard_button: "View Dashboard",
+                dashboard_title: "Crop Recommendation Dashboard",
+                your_dashboard: "Your Dashboard",
+                customize_button: "Customize",
+                dashboard_description: "Dynamic data for informed farming decisions.",
+                realtime_weather_title: "Real-Time Weather",
+                now: "Now",
+                am_10: "10 AM",
+                pm_1: "1 PM",
+                pm_4: "4 PM",
+                forecast_title: "7-Day Forecast",
+                today: "Today",
+                mon: "Mon",
+                tue: "Tue",
+                sunny: "Sunny",
+                cloudy: "Cloudy",
+                rain: "Rain",
+                predictive_analytics_title: "Predictive Analytics",
+                soybean_yield_label: "Soybean Yield",
+                tons_per_acre: "tons/acre",
+                soybean_yield_trend: "+0.2 vs avg",
+                corn_yield_label: "Corn Yield",
+                corn_yield_trend: "+0.4 vs avg",
+                compare_recommendations_title: "Compare Recommendations",
+                soybeans_rec: "Soybeans (Rec.)",
+                est_profit: "Est. Profit:",
+                soybean_profit: "₹350/acre",
+                planting_dates: "Planting:",
+                harvest_dates: "Harvest:",
+                corn: "Corn",
+                est_profit_corn: "Est. Profit:",
+                corn_profit: "₹320/acre",
+                planting_dates_corn: "Planting:",
+                harvest_dates_corn: "Harvest:",
+                wheat: "Wheat",
+                est_profit_wheat: "Est. Profit:",
+                wheat_profit: "₹280/acre",
+                planting_dates_wheat: "Planting:",
+                harvest_dates_wheat: "Harvest:",
+                market_prices_title: "Market Prices",
+                soybeans: "Soybeans",
+                corn_label: "Corn",
+                unit_kg: "kg/ha",
+                unit_temp: "°C",
+                unit_percent: "%",
+                unit_mm: "mm",
+                nav_home: "Home",
+                nav_recommendations: "Recommendations",
+                nav_profile: "Profile",
+                nav_settings: "Settings",
+                save_recommendation_button: "Save Recommendation",
+                analysis_title: "Detailed Analysis",
+                your_history_title: "Your Recommendation History",
+                user_id_label: "Your User ID (for sharing):",
+                no_history: "No saved history.",
+                start_new_recommendation: "Start New Recommendation",
+                tooltip_nitrogen: "Nitrogen is essential for vegetative growth and leaf development.",
+                tooltip_phosphorus: "Phosphorus is crucial for root development, flowering, and fruiting.",
+                tooltip_potassium: "Potassium helps with overall plant health and water regulation.",
+                tooltip_ph: "pH is a measure of soil acidity or alkalinity, affecting nutrient availability.",
+                tooltip_temperature: "Temperature affects plant growth and the speed of chemical reactions in the soil.",
+                tooltip_humidity: "Humidity affects a plant's ability to transpire and can increase disease risk.",
+                tooltip_rainfall: "Rainfall provides essential water for growth and impacts soil moisture.",
+                current_value: "Your Value:",
+                ideal_range: "Ideal Range:",
+                out_of_range_text: "Out of Ideal Range",
+                in_range_text: "Within Ideal Range"
+            },
+            hi: {
+                welcome_title: "एग्री-जीपीटी में आपका स्वागत है",
+                welcome_tagline: "आधुनिक खेती के लिए आपका स्मार्ट साथी।",
+                welcome_description: "यह एआई-संचालित प्रणाली मिट्टी और मौसम की स्थितियों के आधार पर आपकी भूमि के लिए सबसे उपयुक्त फसल की सिफारिश करती है।",
+                select_language: "भाषा चुनें",
+                continue_button: "जारी रखें",
+                profile_title: "फार्म प्रोफ़ाइल सेटअप",
+                step_one: "चरण 1/2",
+                personal_details: "व्यक्तिगत विवरण",
+                your_info: "आपकी जानकारी",
+                your_name_label: "आपका नाम",
+                your_name_placeholder: "अपना पूरा नाम दर्ज करें",
+                email_label: "ईमेल पता",
+                email_placeholder: "आप@उदाहरण.कॉम",
+                contact_label: "संपर्क संख्या",
+                contact_placeholder: "अपना फ़ोन नंबर दर्ज करें",
+                back_button: "पीछे",
+                next_button: "आगे",
+                predict_title: "फसल की सिफारिश",
+                predict_subtitle: "मिट्टी और जलवायु डेटा दर्ज करें",
+                predict_description: "फसल की सिफारिश प्राप्त करने के लिए निम्नलिखित विवरण प्रदान करें।",
+                manual_entry: "या मैन्युअल रूप से दर्ज करें",
+                soil_data_title: "मिट्टी का डेटा",
+                nitrogen_label: "नाइट्रोजन (एन)",
+                nitrogen_placeholder: "उदाहरण के लिए, 90",
+                phosphorus_label: "फास्फोरस (पी)",
+                phosphorus_placeholder: "उदाहरण के लिए, 42",
+                potassium_label: "पोटेशियम (के)",
+                potassium_placeholder: "उदाहरण के लिए, 43",
+                ph_label: "पीएच मान",
+                climate_data_title: "जलवायु डेटा",
+                temperature_label: "तापमान",
+                temperature_placeholder: "उदाहरण के लिए, 20.8",
+                humidity_label: "नमी",
+                humidity_placeholder: "उदाहरण के लिए, 82",
+                rainfall_label: "वर्षा",
+                rainfall_placeholder: "उदाहरण के लिए, 202.9",
+                get_recommendation_button: "सिफारिश प्राप्त करें",
+                result_title: "सिफारिश का परिणाम",
+                recommended_crop_title: "अनुशंसित फसल",
+                result_description: "यह सिफारिश आपके द्वारा प्रदान किए गए डेटा पर आधारित है। मॉडल आपकी विशिष्ट परिस्थितियों के लिए इस फसल को सबसे उपयुक्त मानता है।",
+                start_again_button: "फिर से शुरू करें",
+                view_dashboard_button: "डैशबोर्ड देखें",
+                dashboard_title: "फसल सिफारिश डैशबोर्ड",
+                your_dashboard: "आपका डैशबोर्ड",
+                customize_button: "अनुकूलित करें",
+                dashboard_description: "सूचित खेती के फैसलों के लिए गतिशील डेटा।",
+                realtime_weather_title: "वास्तविक समय मौसम",
+                now: "अब",
+                am_10: "सुबह 10 बजे",
+                pm_1: "दोपहर 1 बजे",
+                pm_4: "शाम 4 बजे",
+                forecast_title: "7-दिवसीय पूर्वानुमान",
+                today: "आज",
+                mon: "सोम",
+                tue: "मंगल",
+                sunny: "धूप",
+                cloudy: "बादल",
+                rain: "बारिश",
+                predictive_analytics_title: "भविष्यवाणी विश्लेषण",
+                soybean_yield_label: "सोयाबीन की उपज",
+                tons_per_acre: "टन/एकड़",
+                soybean_yield_trend: "+0.2 बनाम औसत",
+                corn_yield_label: "मक्का की उपज",
+                corn_yield_trend: "+0.4 बनाम औसत",
+                compare_recommendations_title: "सिफारिशों की तुलना करें",
+                soybeans_rec: "सोयाबीन (अनु.)",
+                est_profit: "अनुमानित लाभ:",
+                soybean_profit: "₹350/एकड़",
+                planting_dates: "बुवाई:",
+                harvest_dates: "कटाई:",
+                corn: "मक्का",
+                est_profit_corn: "अनुमानित लाभ:",
+                corn_profit: "₹320/एकड़",
+                planting_dates_corn: "बुवाई:",
+                harvest_dates_corn: "कटाई:",
+                wheat: "गेहूं",
+                est_profit_wheat: "अनुमानित लाभ:",
+                wheat_profit: "₹280/एकड़",
+                planting_dates_wheat: "बुवाई:",
+                harvest_dates_wheat: "कटाई:",
+                market_prices_title: "बाजार मूल्य",
+                soybeans: "सोयाबीन",
+                corn_label: "मक्का",
+                unit_kg: "किग्रा/हे",
+                unit_temp: "°से",
+                unit_percent: "%",
+                unit_mm: "मिमी",
+                nav_home: "मुख्य पृष्ठ",
+                nav_recommendations: "सिफारिशें",
+                nav_profile: "प्रोफ़ाइल",
+                nav_settings: "सेटिंग्स",
+                save_recommendation_button: "सिफारिश सहेजें",
+                analysis_title: "विस्तृत विश्लेषण",
+                your_history_title: "आपका सिफारिश इतिहास",
+                user_id_label: "आपकी उपयोगकर्ता आईडी (साझा करने के लिए):",
+                no_history: "कोई सहेजा गया इतिहास नहीं।",
+                start_new_recommendation: "नई सिफारिश शुरू करें",
+                tooltip_nitrogen: "नाइट्रोजन वानस्पतिक विकास और पत्ती के विकास के लिए आवश्यक है।",
+                tooltip_phosphorus: "फास्फोरस जड़ के विकास, फूल आने और फल लगने के लिए महत्वपूर्ण है।",
+                tooltip_potassium: "पोटेशियम पौधे के समग्र स्वास्थ्य और जल विनियमन में मदद करता है।",
+                tooltip_ph: "पीएच मिट्टी की अम्लता या क्षारीयता का एक माप है, जो पोषक तत्वों की उपलब्धता को प्रभावित करता है।",
+                tooltip_temperature: "तापमान पौधे के विकास और मिट्टी में रासायनिक प्रतिक्रियाओं की गति को प्रभावित करता है।",
+                tooltip_humidity: "नमी पौधे की श्वसन की क्षमता को प्रभावित करती है और बीमारी के जोखिम को बढ़ा सकती है।",
+                tooltip_rainfall: "वर्षा विकास के लिए आवश्यक पानी प्रदान करती है और मिट्टी की नमी को प्रभावित करती है।",
+                current_value: "आपका मान:",
+                ideal_range: "आदर्श सीमा:",
+                out_of_range_text: "आदर्श सीमा से बाहर",
+                in_range_text: "आदर्श सीमा के भीतर"
+            },
+            mr: {
+                welcome_title: "ॲग्री-जीपीटी मध्ये आपले स्वागत आहे",
+                welcome_tagline: "आधुनिक शेतीसाठी तुमचा स्मार्ट सोबती.",
+                welcome_description: "ही एआय-आधारित प्रणाली माती आणि हवामानानुसार तुमच्या जमिनीसाठी सर्वात योग्य पिकाची शिफारस करते.",
+                select_language: "भाषा निवडा",
+                continue_button: "पुढे चालू ठेवा",
+                profile_title: "शेत प्रोफाइल सेटअप",
+                step_one: "पायरी 1/2",
+                personal_details: "वैयक्तिक तपशील",
+                your_info: "तुमची माहिती",
+                your_name_label: "तुमचे नाव",
+                your_name_placeholder: "तुमचे पूर्ण नाव प्रविष्ट करा",
+                email_label: "ईमेल पत्ता",
+                email_placeholder: "तुम्ही@उदाहरण.कॉम",
+                contact_label: "संपर्क क्रमांक",
+                contact_placeholder: "तुमचा फोन नंबर प्रविष्ट करा",
+                back_button: "मागे",
+                next_button: "पुढे",
+                predict_title: "पिकाची शिफारस",
+                predict_subtitle: "माती आणि हवामान डेटा प्रविष्ट करा",
+                predict_description: "पिकाची शिफारस मिळवण्यासाठी खालील तपशील प्रदान करा.",
+                manual_entry: "किंवा स्वतः प्रविष्ट करा",
+                soil_data_title: "मातीचा डेटा",
+                nitrogen_label: "नायट्रोजन (एन)",
+                nitrogen_placeholder: "उदा., 90",
+                phosphorus_label: "फॉस्फरस (पी)",
+                phosphorus_placeholder: "उदा., 42",
+                potassium_label: "पोटॅशियम (के)",
+                potassium_placeholder: "उदा., 43",
+                ph_label: "पीएच मूल्य",
+                climate_data_title: "हवामान डेटा",
+                temperature_label: "तापमान",
+                temperature_placeholder: "उदा., 20.8",
+                humidity_label: "आर्द्रता",
+                humidity_placeholder: "उदा., 82",
+                rainfall_label: "पाऊस",
+                rainfall_placeholder: "उदा., 202.9",
+                get_recommendation_button: "शिफारस मिळवा",
+                result_title: "शिफारसीचा निकाल",
+                recommended_crop_title: "शिफारस केलेले पीक",
+                result_description: "ही शिफारस तुमच्याद्वारे प्रदान केलेल्या डेटावर आधारित आहे. मॉडेल तुमच्या विशिष्ट परिस्थितीसाठी हे पीक सर्वात योग्य मानतो.",
+                start_again_button: "पुन्हा सुरू करा",
+                view_dashboard_button: "डॅशबोर्ड पहा",
+                dashboard_title: "पिकाची शिफारस डॅशबोर्ड",
+                your_dashboard: "तुमचे डॅशबोर्ड",
+                customize_button: "अनुकूलित करा",
+                dashboard_description: "माहितीवर आधारित शेतीच्या निर्णयांसाठी डायनॅमिक डेटा.",
+                realtime_weather_title: "वास्तविक-वेळ हवामान",
+                now: "आता",
+                am_10: "सकाळी 10",
+                pm_1: "दुपारी 1",
+                pm_4: "सायंकाळी 4",
+                forecast_title: "7-दिवसांचे पूर्वानुमान",
+                today: "आज",
+                mon: "सोम",
+                tue: "मंगळ",
+                sunny: "सनी",
+                cloudy: "ढगाळ",
+                rain: "पाऊस",
+                predictive_analytics_title: "भविष्यसूचक विश्लेषण",
+                soybean_yield_label: "सोयाबीन उत्पादन",
+                tons_per_acre: "टन/एकर",
+                soybean_yield_trend: "+0.2 वि. सरासरी",
+                corn_yield_label: "मका उत्पादन",
+                corn_yield_trend: "+0.4 वि. सरासरी",
+                compare_recommendations_title: "शिफारशांची तुलना करा",
+                soybeans_rec: "सोयाबीन (शिफा.)",
+                est_profit: "अंदाजे नफा:",
+                soybean_profit: "₹350/एकर",
+                planting_dates: "लागवड:",
+                harvest_dates: "कापणी:",
+                corn: "मका",
+                est_profit_corn: "अंदाजे नफा:",
+                corn_profit: "₹320/एकर",
+                planting_dates_corn: "लागवड:",
+                harvest_dates_corn: "कापणी:",
+                wheat: "गहू",
+                est_profit_wheat: "अंदाजे नफा:",
+                wheat_profit: "₹280/एकर",
+                planting_dates_wheat: "लागवड:",
+                harvest_dates_wheat: "कापणी:",
+                market_prices_title: "बाजारभाव",
+                soybeans: "सोयाबीन",
+                corn_label: "मका",
+                unit_kg: "किग्रा/हे",
+                unit_temp: "°से",
+                unit_percent: "%",
+                unit_mm: "मिमी",
+                nav_home: "मुख्यपृष्ठ",
+                nav_recommendations: "शिफारशी",
+                nav_profile: "प्रोफाइल",
+                nav_settings: "सेटिंग्ज",
+                save_recommendation_button: "शिफारस जतन करा",
+                analysis_title: "सविस्तर विश्लेषण",
+                your_history_title: "तुमचा शिफारस इतिहास",
+                user_id_label: "तुमची वापरकर्ता आयडी (सामायिक करण्यासाठी):",
+                no_history: "कोणताही इतिहास जतन नाही.",
+                start_new_recommendation: "नवीन शिफारस सुरू करा",
+                tooltip_nitrogen: "वनस्पतींच्या वाढीसाठी आणि पानांच्या विकासासाठी नायट्रोजन आवश्यक आहे.",
+                tooltip_phosphorus: "मुळांच्या विकासासाठी, फुलण्यासाठी आणि फळ येण्यासाठी फॉस्फरस महत्त्वपूर्ण आहे.",
+                tooltip_potassium: "पोटॅशियम एकूण वनस्पतींच्या आरोग्यासाठी आणि जल नियमनात मदत करते.",
+                tooltip_ph: "पीएच हे मातीच्या आम्लतेचे किंवा क्षारीयतेचे मापन आहे, जे पोषक तत्वांच्या उपलब्धतेवर परिणाम करते.",
+                tooltip_temperature: "तापमान वनस्पतींच्या वाढीवर आणि मातीतील रासायनिक प्रतिक्रियांच्या वेगावर परिणाम करते.",
+                tooltip_humidity: "आर्द्रता वनस्पतींच्या श्वसन क्षमतेवर परिणाम करते आणि रोगाचा धोका वाढवू शकते.",
+                tooltip_rainfall: "पाऊस वाढीसाठी आवश्यक पाणी पुरवतो आणि मातीतील ओलावा प्रभावित करतो.",
+                current_value: "तुमचे मूल्य:",
+                ideal_range: "आदर्श श्रेणी:",
+                out_of_range_text: "आदर्श श्रेणीच्या बाहेर",
+                in_range_text: "आदर्श श्रेणीत"
+            },
+            bn: {
+                welcome_title: "অ্যাগরি-জিপিটি-তে স্বাগতম",
+                welcome_tagline: "আধুনিক কৃষির জন্য আপনার স্মার্ট সঙ্গী।",
+                welcome_description: "এই এআই-চালিত সিস্টেম মাটি ও আবহাওয়ার অবস্থার উপর ভিত্তি করে আপনার জমির জন্য সবচেয়ে উপযুক্ত ফসলের সুপারিশ করে।",
+                select_language: "ভাষা নির্বাচন করুন",
+                continue_button: "চালিয়ে যান",
+                profile_title: "ফার্ম প্রোফাইল সেটআপ",
+                step_one: "ধাপ 1/2",
+                personal_details: "ব্যক্তিগত বিবরণ",
+                your_info: "আপনার তথ্য",
+                your_name_label: "আপনার নাম",
+                your_name_placeholder: "আপনার পুরো নাম লিখুন",
+                email_label: "ইমেল ঠিকানা",
+                email_placeholder: "আপনি@উদাহরণ.কম",
+                contact_label: "যোগাযোগের নম্বর",
+                contact_placeholder: "আপনার ফোন নম্বর লিখুন",
+                back_button: "ফিরে যান",
+                next_button: "পরবর্তী",
+                predict_title: "ফসলের সুপারিশ",
+                predict_subtitle: "মাটি ও জলবায়ু ডেটা লিখুন",
+                predict_description: "ফসলের সুপারিশ পেতে নিম্নলিখিত বিবরণ প্রদান করুন।",
+                manual_entry: "অথবা ম্যানুয়ালি লিখুন",
+                soil_data_title: "মাটির ডেটা",
+                nitrogen_label: "নাইট্রোজেন (এন)",
+                nitrogen_placeholder: "যেমন, 90",
+                phosphorus_label: "ফসফরাস (পি)",
+                phosphorus_placeholder: "যেমন, 42",
+                potassium_label: "পটাশিয়াম (কে)",
+                potassium_placeholder: "যেমন, 43",
+                ph_label: "পিএইচ",
+                climate_data_title: "জলবায়ু ডেটা",
+                temperature_label: "তাপমাত্রা",
+                temperature_placeholder: "যেমন, 20.8",
+                humidity_label: "আর্দ্রতা",
+                humidity_placeholder: "যেমন, 82",
+                rainfall_label: "বৃষ্টিপাত",
+                rainfall_placeholder: "যেমন, 202.9",
+                get_recommendation_button: "সুপারিশ পান",
+                result_title: "সুপারিশের ফলাফল",
+                recommended_crop_title: "সুপারিশকৃত ফসল",
+                result_description: "এই সুপারিশটি আপনার দেওয়া ডেটার উপর ভিত্তি করে। মডেলটি আপনার নির্দিষ্ট অবস্থার জন্য এই ফসলটিকে সবচেয়ে উপযুক্ত বলে মনে করে।",
+                start_again_button: "আবার শুরু করুন",
+                view_dashboard_button: "ড্যাশবোর্ড দেখুন",
+                dashboard_title: "ফসলের সুপারিশ ড্যাশবোর্ড",
+                your_dashboard: "আপনার ড্যাশবোর্ড",
+                customize_button: "কাস্টমাইজ করুন",
+                dashboard_description: "সঠিক কৃষি সিদ্ধান্তের জন্য গতিশীল ডেটা।",
+                realtime_weather_title: "রিয়েল-টাইম আবহাওয়া",
+                now: "এখন",
+                am_10: "সকাল 10টা",
+                pm_1: "দুপুর 1টা",
+                pm_4: "বিকাল 4টা",
+                forecast_title: "7-দিনের পূর্বাভাস",
+                today: "আজ",
+                mon: "সোম",
+                tue: "মঙ্গল",
+                sunny: "রৌদ্রোজ্জ্বল",
+                cloudy: "মেঘলা",
+                rain: "বৃষ্টি",
+                predictive_analytics_title: "ভবিষ্যৎবাণী বিশ্লেষণ",
+                soybean_yield_label: "সয়াবিনের ফলন",
+                tons_per_acre: "টন/একর",
+                soybean_yield_trend: "+0.2 বনাম গড়",
+                corn_yield_label: "ভুট্টার ফলন",
+                corn_yield_trend: "+0.4 বনাম গড়",
+                compare_recommendations_title: "সুপারিশ তুলনা করুন",
+                soybeans_rec: "সয়াবিন (সু.)",
+                est_profit: "আনুমানিক লাভ:",
+                soybean_profit: "₹350/একর",
+                planting_dates: "রোপণ:",
+                harvest_dates: "ফসল তোলা:",
+                corn: "ভুট্টা",
+                est_profit_corn: "আনুমানিক লাভ:",
+                corn_profit: "₹320/একর",
+                planting_dates_corn: "রোপণ:",
+                harvest_dates_corn: "ফসল তোলা:",
+                wheat: "গম",
+                est_profit_wheat: "আনুমানিক লাভ:",
+                wheat_profit: "₹280/একর",
+                planting_dates_wheat: "রোপণ:",
+                harvest_dates_wheat: "ফসল তোলা:",
+                market_prices_title: "বাজার মূল্য",
+                soybeans: "সয়াবিন",
+                corn_label: "ভুট্টা",
+                unit_kg: "কেজি/হে",
+                unit_temp: "°সে",
+                unit_percent: "%",
+                unit_mm: "মিমি",
+                nav_home: "হোম",
+                nav_recommendations: "সুপারিশ",
+                nav_profile: "প্রোফাইল",
+                nav_settings: "সেটিংস",
+                save_recommendation_button: "সুপারিশ সংরক্ষণ করুন",
+                analysis_title: "বিস্তারিত বিশ্লেষণ",
+                your_history_title: "আপনার সুপারিশের ইতিহাস",
+                user_id_label: "আপনার ব্যবহারকারী আইডি (শেয়ার করার জন্য):",
+                no_history: "কোনো ইতিহাস সংরক্ষণ করা হয়নি।",
+                start_new_recommendation: "নতুন সুপারিশ শুরু করুন",
+                tooltip_nitrogen: "উদ্ভিদের বৃদ্ধি এবং পাতা বিকাশের জন্য নাইট্রোজেন অপরিহার্য।",
+                tooltip_phosphorus: "মূলের বিকাশ, ফুল ফোটা এবং ফল ধরার জন্য ফসফরাস অত্যন্ত গুরুত্বপূর্ণ।",
+                tooltip_potassium: "পটাশিয়াম উদ্ভিদের সামগ্রিক স্বাস্থ্য এবং জল নিয়ন্ত্রণে সহায়তা করে।",
+                tooltip_ph: "পিএইচ হলো মাটির অম্লতা বা ক্ষারত্ব পরিমাপ, যা পুষ্টির উপলব্ধতাকে প্রভাবিত করে।",
+                tooltip_temperature: "তাপমাত্রা উদ্ভিদের বৃদ্ধি এবং মাটির রাসায়নিক বিক্রিয়ার গতিকে প্রভাবিত করে।",
+                tooltip_humidity: "আর্দ্রতা উদ্ভিদের প্রশ্বাসকে প্রভাবিত করে এবং রোগের ঝুঁকি বাড়াতে পারে।",
+                tooltip_rainfall: "বৃষ্টিপাত বৃদ্ধির জন্য প্রয়োজনীয় জল সরবরাহ করে এবং মাটির আর্দ্রতাকে প্রভাবিত করে।",
+                current_value: "আপনার মান:",
+                ideal_range: "আদর্শ পরিসর:",
+                out_of_range_text: "আদর্শ পরিসরের বাইরে",
+                in_range_text: "আদর্শ পরিসরের মধ্যে"
+            },
+            ta: {
+                welcome_title: "அக்ரி-ஜிபிடிக்கு வரவேற்கிறோம்",
+                welcome_tagline: "நவீன விவசாயத்திற்கான உங்கள் ஸ்மார்ட் துணை.",
+                welcome_description: "இந்த AI-உந்துதல் அமைப்பு மண் மற்றும் வானிலை நிலைகளின் அடிப்படையில் உங்கள் நிலத்திற்கு மிகவும் பொருத்தமான பயிரை பரிந்துரைக்கிறது.",
+                select_language: "மொழியைத் தேர்ந்தெடுக்கவும்",
+                continue_button: "தொடரவும்",
+                profile_title: "பண்ணை விவரங்களை அமைக்கவும்",
+                step_one: "படி 1/2",
+                personal_details: "தனிப்பட்ட விவரங்கள்",
+                your_info: "உங்கள் தகவல்",
+                your_name_label: "உங்கள் பெயர்",
+                your_name_placeholder: "உங்கள் முழுப் பெயரை உள்ளிடவும்",
+                email_label: "மின்னஞ்சல் முகவரி",
+                email_placeholder: "நீங்கள்@உதாரணம்.காம்",
+                contact_label: "தொடர்பு எண்",
+                contact_placeholder: "உங்கள் தொலைபேசி எண்ணை உள்ளிடவும்",
+                back_button: "பின்",
+                next_button: "அடுத்து",
+                predict_title: "பயிர் பரிந்துரை",
+                predict_subtitle: "மண் மற்றும் காலநிலைத் தரவை உள்ளிடவும்",
+                predict_description: "பயிர் பரிந்துரையைப் பெற பின்வரும் விவரங்களை வழங்கவும்.",
+                manual_entry: "அல்லது கைமுறையாக உள்ளிடவும்",
+                soil_data_title: "மண் தரவு",
+                nitrogen_label: "நைட்ரஜன் (N)",
+                nitrogen_placeholder: "உதாரணமாக, 90",
+                phosphorus_label: "பாஸ்பரஸ் (P)",
+                phosphorus_placeholder: "உதாரணமாக, 42",
+                potassium_label: "பொட்டாசியம் (K)",
+                potassium_placeholder: "உதாரணமாக, 43",
+                ph_label: "pH",
+                climate_data_title: "காலநிலைத் தரவு",
+                temperature_label: "வெப்பநிலை",
+                temperature_placeholder: "உதாரணமாக, 20.8",
+                humidity_label: "ஈரப்பதம்",
+                humidity_placeholder: "உதாரணமாக, 82",
+                rainfall_label: "மழைப்பொழிவு",
+                rainfall_placeholder: "உதாரணமாக, 202.9",
+                get_recommendation_button: "பரிந்துரை பெறு",
+                result_title: "பரிந்துரை முடிவு",
+                recommended_crop_title: "பரிந்துரைக்கப்பட்ட பயிர்",
+                result_description: "இந்த பரிந்துரை நீங்கள் வழங்கிய தரவின் அடிப்படையில் அமைந்துள்ளது. உங்கள் குறிப்பிட்ட நிலைமைகளுக்கு இந்தப் பயிர் மிகவும் பொருத்தமானது என்று மாதிரி பரிந்துரைக்கிறது.",
+                start_again_button: "மீண்டும் தொடங்கு",
+                view_dashboard_button: "டாஷ்போர்டைப் பார்",
+                dashboard_title: "பயிர் பரிந்துரை டாஷ்போர்டு",
+                your_dashboard: "உங்கள் டாஷ்போர்டு",
+                customize_button: "தனிப்பயனாக்கு",
+                dashboard_description: "தகவல் சார்ந்த விவசாய முடிவுகளுக்கான மாறும் தரவு.",
+                realtime_weather_title: "நிகழ்நேர வானிலை",
+                now: "இப்போது",
+                am_10: "காலை 10",
+                pm_1: "பிற்பகல் 1",
+                pm_4: "மாலை 4",
+                forecast_title: "7-நாள் முன்கணிப்பு",
+                today: "இன்று",
+                mon: "திங்கள்",
+                tue: "செவ்வாய்",
+                sunny: "வெயிலானது",
+                cloudy: "மேகமூட்டமானது",
+                rain: "மழை",
+                predictive_analytics_title: "முன்கணிப்பு பகுப்பாய்வு",
+                soybean_yield_label: "சோயாபீன்ஸ் விளைச்சல்",
+                tons_per_acre: "டன்/ஏக்கர்",
+                soybean_yield_trend: "+0.2 vs சராசரி",
+                corn_yield_label: "மக்காச் சோளம் விளைச்சல்",
+                corn_yield_trend: "+0.4 vs சராசரி",
+                compare_recommendations_title: "பரிந்துரைகளை ஒப்பிடுங்கள்",
+                soybeans_rec: "சோயாபீன்ஸ் (பரி.)",
+                est_profit: "மதிப்பீடு. இலாபம்:",
+                soybean_profit: "₹350/ஏக்கர்",
+                planting_dates: "நடுதல்:",
+                harvest_dates: "அறுவடை:",
+                corn: "மக்காச் சோளம்",
+                est_profit_corn: "மதிப்பீடு. இலாபம்:",
+                corn_profit: "₹320/ஏக்கர்",
+                planting_dates_corn: "நடுதல்:",
+                harvest_dates_corn: "அறுவடை:",
+                wheat: "கோதுமை",
+                est_profit_wheat: "மதிப்பீடு. இலாபம்:",
+                wheat_profit: "₹280/ஏக்கர்",
+                planting_dates_wheat: "நடுதல்:",
+                harvest_dates_wheat: "அறுவடை:",
+                market_prices_title: "சந்தை விலைகள்",
+                soybeans: "சோயாபீன்ஸ்",
+                corn_label: "மக்காச் சோளம்",
+                unit_kg: "கிலோ/ஹெ",
+                unit_temp: "°C",
+                unit_percent: "%",
+                unit_mm: "மிமீ",
+                nav_home: "முகப்பு",
+                nav_recommendations: "பரிந்துரைகள்",
+                nav_profile: "சுயவிவரம்",
+                nav_settings: "அமைப்புகள்",
+                save_recommendation_button: "பரிந்துரையை சேமிக்கவும்",
+                analysis_title: "விரிவான பகுப்பாய்வு",
+                your_history_title: "உங்கள் பரிந்துரை வரலாறு",
+                user_id_label: "உங்கள் பயனர் ஐடி (பகிர்தலுக்கு):",
+                no_history: "வரலாறு சேமிக்கப்படவில்லை.",
+                start_new_recommendation: "புதிய பரிந்துரையைத் தொடங்கவும்",
+                tooltip_nitrogen: "தாவர வளர்ச்சி மற்றும் இலை வளர்ச்சிக்கு நைட்ரஜன் அவசியம்.",
+                tooltip_phosphorus: "வேர் வளர்ச்சி, பூத்தல் மற்றும் பழம் கொடுப்பதற்கு பாஸ்பரஸ் மிக முக்கியம்.",
+                tooltip_potassium: "பொட்டாசியம் ஒட்டுமொத்த தாவர ஆரோக்கியம் மற்றும் நீர் ஒழுங்குமுறைக்கு உதவுகிறது.",
+                tooltip_ph: "pH என்பது மண்ணின் அமிலத்தன்மை அல்லது காரத்தன்மையின் அளவீடு, இது ஊட்டச்சத்து கிடைப்பதைப் பாதிக்கிறது.",
+                tooltip_temperature: "வெப்பநிலை தாவர வளர்ச்சி மற்றும் மண்ணில் உள்ள இரசாயன எதிர்வினைகளின் வேகத்தை பாதிக்கிறது.",
+                tooltip_humidity: "ஈரப்பதம் ஒரு தாவரத்தின் வியர்வை வெளியேற்றும் திறனை பாதிக்கிறது மற்றும் நோய் அபாயத்தை அதிகரிக்கும்.",
+                tooltip_rainfall: "மழைப்பொழிவு வளர்ச்சிக்கு அத்தியாவசியமான நீரை வழங்குகிறது மற்றும் மண் ஈரப்பதத்தை பாதிக்கிறது.",
+                current_value: "உங்கள் மதிப்பு:",
+                ideal_range: "சரியான வரம்பு:",
+                out_of_range_text: "சரியான வரம்பிற்கு வெளியே",
+                in_range_text: "சரியான வரம்பிற்குள்"
+            },
+            te: {
+                welcome_title: "అగ్రి-జిపిటికి స్వాగతం",
+                welcome_tagline: "ఆధునిక వ్యవసాయం కోసం మీ స్మార్ట్ సహాయకుడు.",
+                welcome_description: "ఈ AI-ఆధారిత వ్యవస్థ మట్టి మరియు వాతావరణ పరిస్థితుల ఆధారంగా మీ భూమికి అత్యంత అనుకూలమైన పంటను సిఫార్సు చేస్తుంది.",
+                select_language: "భాషను ఎంచుకోండి",
+                continue_button: "కొనసాగించండి",
+                profile_title: "పొలం ప్రొఫైల్ సెటప్",
+                step_one: "దశ 1/2",
+                personal_details: "వ్యక్తిగత వివరాలు",
+                your_info: "మీ సమాచారం",
+                your_name_label: "మీ పేరు",
+                your_name_placeholder: "మీ పూర్తి పేరును నమోదు చేయండి",
+                email_label: "ఇమెయిల్ చిరునామా",
+                email_placeholder: "మీరు@ఉదాహరణ.కామ్",
+                contact_label: "సంప్రదింపు సంఖ్య",
+                contact_placeholder: "మీ ఫోన్ నంబర్‌ను నమోదు చేయండి",
+                back_button: "వెనుకకు",
+                next_button: "తరువాత",
+                predict_title: "పంట సిఫార్సు",
+                predict_subtitle: "మట్టి & వాతావరణ సమాచారాన్ని నమోదు చేయండి",
+                predict_description: "పంట సిఫార్సు పొందడానికి ఈ క్రింది వివరాలను అందించండి.",
+                manual_entry: "లేదా మాన్యువల్‌గా నమోదు చేయండి",
+                soil_data_title: "మట్టి డేటా",
+                nitrogen_label: "నైట్రోజన్ (N)",
+                nitrogen_placeholder: "ఉదా., 90",
+                phosphorus_label: "ఫాస్ఫరస్ (P)",
+                phosphorus_placeholder: "ఉదా., 42",
+                potassium_label: "పొటాషియం (K)",
+                potassium_placeholder: "ఉదా., 43",
+                ph_label: "pH",
+                climate_data_title: "వాతావరణ డేటా",
+                temperature_label: "ఉష్ణోగ్రత",
+                temperature_placeholder: "ఉదా., 20.8",
+                humidity_label: "తేమ",
+                humidity_placeholder: "ఉదా., 82",
+                rainfall_label: "వర్షపాతం",
+                rainfall_placeholder: "ఉదా., 202.9",
+                get_recommendation_button: "సిఫార్సు పొందండి",
+                result_title: "సిఫార్సు ఫలితం",
+                recommended_crop_title: "సిఫార్సు చేయబడిన పంట",
+                result_description: "ఈ సిఫార్సు మీరు అందించిన డేటా ఆధారంగా రూపొందించబడింది. మీ నిర్దిష్ట పరిస్థితులకు ఈ పంట అత్యంత అనుకూలమైనదిగా మోడల్ సూచిస్తుంది.",
+                start_again_button: "మళ్ళీ ప్రారంభించండి",
+                view_dashboard_button: "డాష్‌బోర్డ్ చూడండి",
+                dashboard_title: "పంట సిఫార్సు డాష్‌బోర్డ్",
+                your_dashboard: "మీ డాష్‌బోర్డ్",
+                customize_button: "అనుకూలీకరించు",
+                dashboard_description: "సమాచార వ్యవసాయ నిర్ణయాల కోసం డైనమిక్ డేటా.",
+                realtime_weather_title: "నిజ-సమయ వాతావరణం",
+                now: "ఇప్పుడు",
+                am_10: "ఉదయం 10",
+                pm_1: "మధ్యాహ్నం 1",
+                pm_4: "సాయంత్రం 4",
+                forecast_title: "7-రోజుల అంచనా",
+                today: "ఈరోజు",
+                mon: "సోమ",
+                tue: "మంగళ",
+                sunny: "ఎండ",
+                cloudy: "మేఘావృతం",
+                rain: "వర్షం",
+                predictive_analytics_title: "అంచనా విశ్లేషణ",
+                soybean_yield_label: "సోయాబీన్ దిగుబడి",
+                tons_per_acre: "టన్నులు/ఎకరం",
+                soybean_yield_trend: "+0.2 vs సగటు",
+                corn_yield_label: "మొక్కజొన్న దిగుబడి",
+                corn_yield_trend: "+0.4 vs సగటు",
+                compare_recommendations_title: "సిఫార్సులను పోల్చండి",
+                soybeans_rec: "సోయాబీన్ (సిఫా.)",
+                est_profit: "అంచనా. లాభం:",
+                soybean_profit: "₹350/ఎకరం",
+                planting_dates: "నాటడం:",
+                harvest_dates: "పంట కోత:",
+                corn: "మొక్కజొన్న",
+                est_profit_corn: "అంచనా. లాభం:",
+                corn_profit: "₹320/ఎకరం",
+                planting_dates_corn: "నాటడం:",
+                harvest_dates_corn: "పంట కోత:",
+                wheat: "గోధుమ",
+                est_profit_wheat: "అంచనా. లాభం:",
+                wheat_profit: "₹280/ఎకరం",
+                planting_dates_wheat: "నాటడం:",
+                harvest_dates_wheat: "పంట కోత:",
+                market_prices_title: "మార్కెట్ ధరలు",
+                soybeans: "సోయాబీన్",
+                corn_label: "మొక్కజొన్న",
+                unit_kg: "కేజీ/హె",
+                unit_temp: "°C",
+                unit_percent: "%",
+                unit_mm: "మిమీ",
+                nav_home: "హోమ్",
+                nav_recommendations: "సిఫార్సులు",
+                nav_profile: "ప్రొఫైల్",
+                nav_settings: "సెట్టింగ్‌లు",
+                save_recommendation_button: "సిఫార్సును సేవ్ చేయండి",
+                analysis_title: "వివరణాత్మక విశ్లేషణ",
+                your_history_title: "మీ సిఫార్సు చరిత్ర",
+                user_id_label: "మీ వినియోగదారు ID (పంచుకోవడానికి):",
+                no_history: "చరిత్ర సేవ్ చేయబడలేదు.",
+                start_new_recommendation: "కొత్త సిఫార్సును ప్రారంభించండి",
+                tooltip_nitrogen: "మొక్కల పెరుగుదల మరియు ఆకుల అభివృద్ధికి నైట్రోజన్ అవసరం.",
+                tooltip_phosphorus: "వేర్ల అభివృద్ధి, పువ్వుల మరియు పండ్ల కోసం ఫాస్ఫరస్ చాలా ముఖ్యం.",
+                tooltip_potassium: "పొటాషియం మొత్తం మొక్కల ఆరోగ్యానికి మరియు నీటి నియంత్రణకు సహాయపడుతుంది.",
+                tooltip_ph: "pH అనేది మట్టి యొక్క ఆమ్లత లేదా క్షారత యొక్క కొలత, ఇది పోషకాల లభ్యతను ప్రభావితం చేస్తుంది.",
+                tooltip_temperature: "ఉష్ణోగ్రత మొక్కల పెరుగుదల మరియు మట్టిలోని రసాయన చర్యల వేగాన్ని ప్రభావితం చేస్తుంది.",
+                tooltip_humidity: "తేమ మొక్కల శ్వాసను ప్రభావితం చేస్తుంది మరియు వ్యాధి ప్రమాదాన్ని పెంచుతుంది.",
+                tooltip_rainfall: "వర్షపాతం పెరుగుదల కోసం అవసరమైన నీటిని అందిస్తుంది మరియు మట్టి తేమను ప్రభావితం చేస్తుంది.",
+                current_value: "మీ విలువ:",
+                ideal_range: "ఆదర్శ పరిధి:",
+                out_of_range_text: "ఆదర్శ పరిధి నుండి బయట",
+                in_range_text: "ఆదర్శ పరిధి లోపల"
+            }
+        };
+
+        let db, auth, userId;
+        const pageState = {};
+
+        function applyAnimations(pageId) {
+            const pageElement = document.getElementById(pageId + '-page');
+            if (pageElement) {
+                const elements = pageElement.querySelectorAll('.animate-in-element');
+                elements.forEach((el, index) => {
+                    el.style.transitionDelay = `${(index * 0.1) + 0.1}s`;
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                         el.style.opacity = '1';
+                         el.style.transform = 'translateY(0)';
+                    }, 50);
+                });
+            }
+        }
+        
+        function navigate(pageId) {
+            const currentPage = document.querySelector('.page.active');
+            const targetPage = document.getElementById(pageId + '-page');
+
+            if (currentPage) {
+                currentPage.classList.remove('active');
+                setTimeout(() => {
+                    currentPage.classList.add('hidden');
+                    if (targetPage) {
+                        targetPage.classList.remove('hidden');
+                        setTimeout(() => {
+                            targetPage.classList.add('active');
+                            applyAnimations(pageId);
+                            if (pageId === 'user') {
+                                loadHistory();
+                            }
+                        }, 50); // Small delay to allow CSS classes to register
+                    }
+                }, 500); // Wait for the fade-out to complete
+            } else if (targetPage) {
+                targetPage.classList.remove('hidden');
+                setTimeout(() => {
+                    targetPage.classList.add('active');
+                    applyAnimations(pageId);
+                }, 50);
+            }
+        }
+        
+        function setLanguage(lang) {
+            const elements = document.querySelectorAll('[data-i18n]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerText = translations[lang][key];
+                }
+            });
+            const placeholders = document.querySelectorAll('[data-i18n-placeholder]');
+            placeholders.forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+        }
+        
+        function showTooltip(element, text) {
+            let tooltip = element.nextElementSibling;
+            if (!tooltip) {
+                const container = element.parentNode;
+                tooltip = document.createElement('span');
+                tooltip.classList.add('tooltip-text');
+                tooltip.innerText = text;
+                container.appendChild(tooltip);
+            }
+            tooltip.style.visibility = 'visible';
+            tooltip.style.opacity = '1';
+        }
+
+        function hideTooltip(element) {
+            const tooltip = element.nextElementSibling;
+            if (tooltip && tooltip.classList.contains('tooltip-text')) {
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.opacity = '0';
+            }
+        }
+
+        function toggleTooltip(event) {
+            const tooltipContainer = event.target.closest('.tooltip-container');
+            if (tooltipContainer) {
+                tooltipContainer.classList.toggle('active');
+                if (tooltipContainer.classList.contains('active')) {
+                    const tooltipTextElement = tooltipContainer.querySelector('.tooltip-text');
+                    const tooltipTextKey = tooltipTextElement.getAttribute('data-i18n');
+                    if (tooltipTextKey && translations[currentLang] && translations[currentLang][tooltipTextKey]) {
+                        tooltipTextElement.innerText = translations[currentLang][tooltipTextKey];
+                    }
+                }
+            }
+        }
+        
+        let currentLang = 'en';
+
+        // Initialize Firebase
+        function initFirebase() {
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const app = firebase.initializeApp(firebaseConfig, typeof __app_id !== 'undefined' ? __app_id : 'default-app-id');
+                db = firebase.firestore(app);
+                auth = firebase.auth(app);
+                
+                auth.onAuthStateChanged(user => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-id-text').innerText = userId;
+                        console.log("Authenticated with user ID:", userId);
+                    } else {
+                        firebase.auth().signInAnonymously().catch((error) => {
+                            console.error("Anonymous sign-in failed:", error);
+                        });
+                    }
+                });
+                
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                const userIdContainer = document.getElementById('user-id-container');
+                if (userIdContainer) {
+                     userIdContainer.innerHTML = '<p class="text-sm font-medium text-gray-400">Database connection failed. History will not be saved.</p>';
+                }
+            }
+        }
+
+        // Fetch weather data
+        async function fetchWeather(lat, lon) {
+            const statusElement = document.getElementById('auto-fill-status');
+            statusElement.innerText = translations[currentLang]['status_fetching_weather'] || "Fetching weather data...";
+            const apiKey = 'YOUR_OPENWEATHERMAP_API_KEY'; // Replace with a real API key
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch weather data.');
+                const data = await response.json();
+                
+                document.getElementById('temperature').value = data.main.temp.toFixed(1);
+                document.getElementById('humidity').value = data.main.humidity.toFixed(0);
+                // Rainfall data is tricky, default to a reasonable value
+                document.getElementById('rainfall').value = (data.rain && data.rain['1h']) ? (data.rain['1h'] * 100).toFixed(1) : 100;
+                
+                statusElement.innerText = translations[currentLang]['status_weather_success'] || "Weather data filled automatically!";
+            } catch (error) {
+                console.error("Weather API call failed:", error);
+                statusElement.innerText = translations[currentLang]['status_weather_fail'] || "Failed to get weather. Please enter manually.";
+            }
+        }
+        
+        function startVoiceInput(inputId) {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-IN'; // Set language to Indian English
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const number = parseFloat(transcript);
+                if (!isNaN(number)) {
+                    document.getElementById(inputId).value = number;
+                }
+            };
+
+            recognition.start();
+        }
+
+        // Save recommendation to Firestore
+        async function saveRecommendation(data) {
+            if (!userId) {
+                console.error("User not authenticated, cannot save.");
+                return;
+            }
+            try {
+                const now = new Date();
+                const historyCollection = db.collection(`artifacts/${__app_id}/users/${userId}/history`);
+                await historyCollection.add({
+                    ...data,
+                    timestamp: now
+                });
+                console.log("Recommendation saved successfully!");
+            } catch (e) {
+                console.error("Error saving recommendation:", e);
+            }
+        }
+        
+        // Load recommendation history
+        async function loadHistory() {
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            
+            if (!userId) {
+                historyList.innerHTML = `<div class="bg-gray-800 p-4 rounded-lg text-center text-gray-500" data-i18n="no_history">No saved history.</div>`;
+                return;
+            }
+
+            const historyCollection = db.collection(`artifacts/${__app_id}/users/${userId}/history`);
+            historyCollection.orderBy('timestamp', 'desc').get().then(snapshot => {
+                if (snapshot.empty) {
+                    historyList.innerHTML = `<div class="bg-gray-800 p-4 rounded-lg text-center text-gray-500" data-i18n="no_history">No saved history.</div>`;
+                    setLanguage(currentLang);
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const item = document.createElement('div');
+                    item.className = 'bg-gray-800 p-4 rounded-lg shadow-sm';
+                    item.innerHTML = `
+                        <h4 class="text-xl font-bold text-green-400 mb-2">${data.recommended_crop}</h4>
+                        <p class="text-sm text-gray-400">N: ${data.nitrogen}, P: ${data.phosphorus}, K: ${data.potassium}</p>
+                        <p class="text-sm text-gray-400">Temp: ${data.temperature}°C, Humidity: ${data.humidity}%, Rainfall: ${data.rainfall}mm</p>
+                        <p class="text-xs text-gray-500 mt-2">${data.timestamp.toDate().toLocaleString()}</p>
+                    `;
+                    historyList.appendChild(item);
+                });
+                setLanguage(currentLang);
+            }).catch(e => {
+                console.error("Error loading history:", e);
+                historyList.innerHTML = `<div class="bg-gray-800 p-4 rounded-lg text-center text-red-500">Error loading history.</div>`;
+            });
+        }
+        
+        // Handle initial page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+            navigate('welcome');
+            
+            const langSelect = document.getElementById('language-select');
+            langSelect.addEventListener('change', (e) => {
+                currentLang = e.target.value;
+                setLanguage(currentLang);
+            });
+            setLanguage(currentLang);
+
+            // Fetch weather data when on the predict page
+            document.getElementById('predict-page').addEventListener('transitionend', (e) => {
+                if (e.target.classList.contains('active')) {
+                    if (navigator.geolocation) {
+                        document.getElementById('auto-fill-status').innerText = "Fetching your location...";
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                fetchWeather(position.coords.latitude, position.coords.longitude);
+                            },
+                            (error) => {
+                                console.error("Geolocation failed:", error);
+                                document.getElementById('auto-fill-status').innerText = "Geolocation failed. Please enter manually.";
+                            }
+                        );
+                    } else {
+                        document.getElementById('auto-fill-status').innerText = "Geolocation not supported. Please enter manually.";
+                    }
+                }
+            });
+        });
+
+        // Handle form submission
+        document.getElementById('recommendation-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const data = {
+                nitrogen: parseFloat(document.getElementById('nitrogen').value),
+                phosphorus: parseFloat(document.getElementById('phosphorus').value),
+                potassium: parseFloat(document.getElementById('potassium').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                humidity: parseFloat(document.getElementById('humidity').value),
+                ph: parseFloat(document.getElementById('ph').value),
+                rainfall: parseFloat(document.getElementById('rainfall').value)
+            };
+            
+            console.log("Data being sent to the server:", data);
+
+            document.getElementById('result-text').innerText = 'Calculating...';
+            navigate('result');
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/predict_crop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Network response was not ok');
+                }
+
+                const result = await response.json();
+                const recommendedCrop = result.recommended_crop.toUpperCase();
+                document.getElementById('result-text').innerText = recommendedCrop;
+
+                pageState.lastRecommendation = {
+                    ...data,
+                    recommended_crop: recommendedCrop
+                };
+                
+                // Detailed analysis rendering
+                const analysisGrid = document.getElementById('analysis-grid');
+                analysisGrid.innerHTML = '';
+                const idealConditions = result.ideal_conditions;
+                
+                const labels = {
+                    'N': 'Nitrogen', 'P': 'Phosphorus', 'K': 'Potassium', 'T': 'Temperature',
+                    'H': 'Humidity', 'pH': 'pH', 'R': 'Rainfall'
+                };
+                const units = {'N':'kg/ha', 'P':'kg/ha', 'K':'kg/ha', 'T':'°C', 'H':'%', 'pH':'', 'R':'mm'};
+
+                Object.keys(labels).forEach((key, index) => {
+                    const userValue = data[Object.keys(data)[index]];
+                    const idealRange = idealConditions[key];
+                    const inRange = idealRange && userValue >= idealRange[0] && userValue <= idealRange[1];
+                    
+                    const card = document.createElement('div');
+                    card.className = `bg-gray-800 p-4 rounded-lg shadow-sm ${inRange ? 'border border-green-500' : 'border border-red-500'}`;
+                    card.innerHTML = `
+                        <p class="font-bold text-sm mb-1 text-gray-200">${labels[key]}</p>
+                        <p class="text-xs text-gray-400 mb-2" data-i18n="current_value">Your Value: <span class="text-white">${userValue} ${units[key]}</span></p>
+                        <p class="text-xs text-gray-400" data-i18n="ideal_range">Ideal Range: <span class="text-white">${idealRange ? `${idealRange[0]} - ${idealRange[1]} ${units[key]}` : 'N/A'}</span></p>
+                    `;
+                    analysisGrid.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error during API call:', error);
+                document.getElementById('result-text').innerText = 'ERROR';
+            }
+        });
+
+        // Save button functionality
+        document.getElementById('save-recommendation-btn').addEventListener('click', () => {
+            if (pageState.lastRecommendation) {
+                saveRecommendation(pageState.lastRecommendation);
+                // Simple feedback to the user
+                alert(translations[currentLang]['save_success'] || "Recommendation saved successfully!");
+            }
+        });
+        
+        // Form validation on the profile page
+        const profileInputs = document.querySelectorAll('#profile-page input[required]');
+        const nextButton = document.getElementById('profile-next-btn');
+
+        function validateProfileForm() {
+            let allFilled = true;
+            profileInputs.forEach(input => {
+                if (!input.value) {
+                    allFilled = false;
+                }
+            });
+            nextButton.disabled = !allFilled;
+        }
+
+        profileInputs.forEach(input => {
+            input.addEventListener('input', validateProfileForm);
+        });
+        
+        // Synchronize pH slider and number input
+        document.getElementById('ph').addEventListener('input', (e) => {
+            document.querySelector('#ph + input').value = e.target.value;
+        });
+        document.querySelector('#ph + input').addEventListener('input', (e) => {
+            document.getElementById('ph').value = e.target.value;
+        });
+    </script>
+</body>
+</html>
+<script>
+async function getCropRecommendation() {
+    const data = {
+        nitrogen: parseFloat(document.getElementById("N").value),
+        phosphorus: parseFloat(document.getElementById("P").value),
+        potassium: parseFloat(document.getElementById("K").value),
+        temperature: parseFloat(document.getElementById("T").value),
+        humidity: parseFloat(document.getElementById("H").value),
+        ph: parseFloat(document.getElementById("pH").value),
+        rainfall: parseFloat(document.getElementById("R").value)
+    };
+
+    try {
+        const response = await fetch("http://127.0.0.1:5000/predict_crop", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        document.getElementById("output").innerText =
+            "Recommended Crop: " + result.recommended_crop +
+            "\nIdeal Conditions: " + JSON.stringify(result.ideal_conditions, null, 2);
+    } catch (err) {
+        console.error(err);
+        document.getElementById("output").innerText = "Error: " + err.message;
+    }
+}
+</script>
+
+<!-- Example button -->
+<button onclick="getCropRecommendation()">Get Recommendation</button>
+<pre id="output"></pre>
